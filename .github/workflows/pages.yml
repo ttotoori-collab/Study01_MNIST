@@ -17,7 +17,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  테스트:
+  test:
+    name: 테스트
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -27,12 +28,13 @@ jobs:
       - name: 자바스크립트 테스트
         run: node --test "web_version/tests/*.mjs"
 
-  배포:
-    needs: 테스트
+  deploy:
+    name: 배포
+    needs: test
     runs-on: ubuntu-latest
     environment:
       name: github-pages
-      url: ${{ steps.배포단계.outputs.page_url }}
+      url: ${{ steps.deploy_step.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
 
@@ -49,5 +51,5 @@ jobs:
         with:
           path: _사이트
 
-      - id: 배포단계
+      - id: deploy_step
         uses: actions/deploy-pages@v4
