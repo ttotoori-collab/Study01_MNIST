@@ -92,6 +92,47 @@ class 전처리_테스트(unittest.TestCase):
         self.assertAlmostEqual(float(값[0, 1]), (1.0 - 0.1307) / 0.3081, places=5)
 
 
+class 글꼴_분리_테스트(unittest.TestCase):
+    """
+    학습 글꼴과 벤치마크 글꼴이 겹치면 정확도 게이트가 스스로를 채점하게 된다.
+    벤치마크는 학습에서 본 적 없는 글자꼴에 대한 일반화를 재는 잣대여야 한다.
+    """
+
+    def test_학습_글꼴과_벤치_글꼴은_겹치지_않는다(self):
+        from 손글씨_생성 import 벤치_글꼴, 학습_글꼴
+        겹침 = {경로.name for 경로 in 학습_글꼴} & {경로.name for 경로 in 벤치_글꼴}
+        self.assertEqual(겹침, set(), f"겹치는 글꼴: {겹침}")
+
+    def test_글꼴_개수가_설계대로다(self):
+        from 손글씨_생성 import 벤치_글꼴, 학습_글꼴
+        self.assertEqual(len(학습_글꼴), 19)
+        self.assertEqual(len(벤치_글꼴), 5)
+
+
+class 전처리_기준값_테스트(unittest.TestCase):
+    """
+    커밋된 fixtures.json 은 자바스크립트 이식의 정답지다. 파이썬 전처리를 고치면
+    이 테스트가 깨져 'fixture 를 다시 구워라'라는 신호를 준다. 이것이 없으면
+    파이썬만 고쳤을 때 두 구현이 조용히 갈라진다.
+    """
+
+    def test_fixture_의_기대값을_그대로_재현한다(self):
+        import json
+
+        fixture경로 = Path(__file__).parent.parent / "tests" / "fixtures.json"
+        자료 = json.loads(fixture경로.read_text(encoding="utf-8"))
+        for 번호, 사례 in enumerate(자료["전처리"]):
+            회색 = np.empty(사례["폭"] * 사례["높이"], dtype=np.uint8)
+            위치 = 0
+            for i in range(0, len(사례["rle"]), 2):
+                값, 개수 = 사례["rle"][i], 사례["rle"][i + 1]
+                회색[위치:위치 + 개수] = 값
+                위치 += 개수
+            결과 = 전처리(회색.reshape(사례["높이"], 사례["폭"]))
+            오차 = np.abs(결과.ravel() - np.array(사례["기대"], dtype=np.float32)).max()
+            self.assertLess(float(오차), 1e-3, f"{번호}번 사례 최대 오차 {오차}")
+
+
 import tempfile
 
 from export_weights import 넘파이_순전파, 내보내기, 레이어_순서, 평균, 표준편차

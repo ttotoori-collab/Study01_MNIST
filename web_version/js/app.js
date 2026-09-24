@@ -23,6 +23,8 @@ const 소요시간 = document.getElementById("소요시간");
 let 모델 = null;
 let 그리는중 = false;
 let 직전 = null;
+let 활성포인터 = null;   // 두 번째 손가락(손바닥 등)이 획을 망가뜨리지 않도록 하나만 추적한다
+let 대기중 = false;      // 모델이 아직 로딩 중일 때 그려진 획이 있으면 로딩 완료 후 재시도한다
 
 /** 0~9 확률 막대 열 줄을 만든다. */
 const 막대들 = Array.from({ length: 10 }, (_, 숫자) => {
@@ -78,15 +80,21 @@ function 점_찍기(점) {
 }
 
 그림판.addEventListener("pointerdown", (이벤트) => {
+  if (그리는중) return;               // 이미 그리는 중이면 두 번째 포인터는 무시한다
   이벤트.preventDefault();
-  그림판.setPointerCapture(이벤트.pointerId);
+  try {
+    그림판.setPointerCapture(이벤트.pointerId);
+  } catch {
+    // 캡처에 실패해도 그리기 자체는 계속 진행한다 (아래 활성포인터 검사로 안전)
+  }
+  활성포인터 = 이벤트.pointerId;
   그리는중 = true;
   직전 = 좌표(이벤트);
   점_찍기(직전);
 });
 
 그림판.addEventListener("pointermove", (이벤트) => {
-  if (!그리는중) return;
+  if (!그리는중 || 이벤트.pointerId !== 활성포인터) return;
   이벤트.preventDefault();
   const 현재 = 좌표(이벤트);
   그리기.beginPath();
@@ -96,11 +104,14 @@ function 점_찍기(점) {
   직전 = 현재;
 });
 
+// pointerleave 는 setPointerCapture 가 걸려 있는 동안은 발생하지 않는다.
+// 캡처가 실패했을 때(위 try/catch)를 대비한 보조 경로라 목록에 남겨 둔다.
 for (const 이름 of ["pointerup", "pointercancel", "pointerleave"]) {
-  그림판.addEventListener(이름, () => {
-    if (!그리는중) return;
+  그림판.addEventListener(이름, (이벤트) => {
+    if (!그리는중 || 이벤트.pointerId !== 활성포인터) return;
     그리는중 = false;
     직전 = null;
+    활성포인터 = null;
     인식();
   });
 }
@@ -124,37 +135,53 @@ function 미리보기_갱신(이미지) {
 }
 
 function 인식() {
-  if (!모델) return;
+  if (!모델) {
+    대기중 = true;   // 모델 로딩이 끝나면 시작하기() 가 이 획으로 다시 인식을 시도한다
+    return;
+  }
   const 회색 = 캔버스에서_회색배열(그리기, 그림판.width, 그림판.height);
   const 이미지 = 전처리(회색, 그림판.width, 그림판.height);
   if (이미지 === null) return;          // 빈 캔버스면 아무것도 하지 않는다
 
-  const 시작 = performance.now();
-  const 확률 = 예측(모델, 이미지);
-  const 걸린시간 = performance.now() - 시작;
+  try {
+    const 시작 = performance.now();
+    const 확률 = 예측(모델, 이미지);
+    const 걸린시간 = performance.now() - 시작;
 
-  let 최고 = 0;
-  for (let i = 1; i < 10; i++) if (확률[i] > 확률[최고]) 최고 = i;
+    let 최고 = 0;
+    for (let i = 1; i < 10; i++) if (확률[i] > 확률[최고]) 최고 = i;
 
-  예측숫자.textContent = String(최고);
-  확신도.textContent = `확신도 ${(확률[최고] * 100).toFixed(1)}%`;
-  소요시간.textContent = `(추론 ${걸린시간.toFixed(1)}ms)`;
-  미리보기_갱신(이미지);
+    예측숫자.textContent = String(최고);
+    확신도.textContent = `확신도 ${(확률[최고] * 100).toFixed(1)}%`;
+    소요시간.textContent = `(추론 ${걸린시간.toFixed(1)}ms)`;
+    미리보기_갱신(이미지);
 
-  막대들.forEach(({ 줄, 막대, 수치 }, 숫자) => {
-    줄.classList.toggle("최고", 숫자 === 최고);
-    막대.style.width = `${확률[숫자] * 100}%`;
-    수치.textContent = `${Math.round(확률[숫자] * 100)}%`;
-  });
+    막대들.forEach(({ 줄, 막대, 수치 }, 숫자) => {
+      줄.classList.toggle("최고", 숫자 === 최고);
+      막대.style.width = `${확률[숫자] * 100}%`;
+      수치.textContent = `${Math.round(확률[숫자] * 100)}%`;
+    });
+  } catch (오류) {
+    오류_보이기(`인식 중 오류가 발생했습니다: ${오류.message}`);
+  }
 }
 
 async function 시작하기() {
   그림판_비우기();
   결과_비우기();
+  예측숫자.textContent = "…";
+  확신도.textContent = "모델을 불러오는 중";
   try {
     모델 = await 모델_불러오기("./model/");
   } catch (오류) {
     오류_보이기(오류.message);
+    return;
+  }
+  예측숫자.textContent = "?";
+  확신도.textContent = "확신도 --";
+  if (대기중) {
+    대기중 = false;
+    인식();
   }
 }
 

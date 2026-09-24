@@ -12,9 +12,22 @@ import { conv2d, linear, maxPool2d, relu, softmax, 텐서 } from "./nn.js";
 // 사람이 쓴 글씨는 무게중심 정렬 뒤에도 한두 픽셀씩 어긋나는데, 이 평균이 그 흔들림을 덮어 준다.
 const 이동_목록 = [[0, 0], [-1, 0], [1, 0], [0, -1], [0, 1]];
 
-/** 메타데이터와 바이트 버퍼로 모델 객체를 만든다. 네트워크에 접근하지 않는다. */
+/**
+ * 메타데이터와 바이트 버퍼로 모델 객체를 만든다. 네트워크에 접근하지 않는다.
+ * weights.bin 이 잘렸거나 weights.json 과 구조가 어긋나면 subarray 가 조용히
+ * 잘라내 NaN 로짓을 내므로, 여기서 미리 정합성을 확인해 명확한 오류로 바꾼다.
+ */
 export function 모델_만들기(메타, 버퍼) {
+  if (메타.구조 !== "web-cnn-v1") {
+    throw new Error(`알 수 없는 모델 구조입니다: ${메타.구조}`);
+  }
   const 전체 = new Float32Array(버퍼);
+  const 기대_개수 = 메타.레이어.reduce((합, 층) => 합 + 층.개수, 0);
+  if (기대_개수 !== 전체.length) {
+    throw new Error(
+      `weights.bin 크기가 맞지 않습니다 (기대 ${기대_개수}개, 실제 ${전체.length}개). ` +
+      "weights.json 과 weights.bin 이 같은 학습 결과에서 나왔는지 확인해 주세요.");
+  }
   const 층사전 = new Map(메타.레이어.map((층) => [층.이름, 층]));
 
   return {

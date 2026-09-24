@@ -9,7 +9,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | 폴더 | 내용 |
 | --- | --- |
 | `desktop_version/` | PyTorch + tkinter 윈도우 앱 (완성) |
-| `web_version/` | 순수 자바스크립트 웹 앱, GitHub Pages 배포 (구축 중) |
+| `web_version/` | 순수 자바스크립트 웹 앱, GitHub Pages 배포 |
 
 작업을 시작하기 전에 어느 쪽 이야기인지 먼저 확인하고 해당 폴더의 CLAUDE.md를 읽는다.
 두 버전은 **코드를 공유하지 않는다.** 한쪽을 고쳤다고 다른 쪽이 따라 바뀌지 않는다.
@@ -104,6 +104,9 @@ MNIST 테스트 정확도만으로는 이를 보장하지 못하므로 두 가�
 | MNIST 테스트 정확도 | 99.0% 이상 |
 | 가혹 손글씨 시뮬레이션 (`bench.py`) | 98.5% 이상 |
 
+MNIST 게이트 여유는 0.04%p(99.04% vs 99.0%)로 얇다. 학습 조건을 바꾸면 이 게이트를
+스칠 수 있으니 두 게이트를 모두 다시 돌려 확인한다.
+
 `bench.py` 는 글꼴로 숫자를 그린 뒤 손떨림·획 굵기·기울기·회전·이동을 더해 실제
 전처리를 통과시켜 측정한다. 미달하면 종료 코드 1을 낸다.
 
@@ -135,5 +138,4 @@ MNIST에는 밑변 세리프가 달린 넓적한 '1'(Segoe Script 계열) 같은
 - 스펙: `docs/superpowers/specs/2026-09-24-web-desktop-split-design.md`
 - 계획: `docs/superpowers/plans/2026-09-24-web-desktop-split.md`
 
-웹 버전은 이 계획에 따라 구축 중이다. `web_version/js/`, `model/`, `tests/` 는
-아직 없을 수 있다. 무엇이 남았는지는 계획 문서의 작업 순서 요약표를 본다.
+웹 버전은 이 계획대로 구현이 끝났다. 설계 근거와 각 작업의 검증 기준은 위 두 문서에 있다.

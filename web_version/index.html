@@ -20,7 +20,7 @@
       </section>
 
       <section class="오른쪽">
-        <div class="결과칸">
+        <div class="결과칸" aria-live="polite">
           <div id="예측숫자" class="예측숫자">?</div>
           <div id="확신도" class="확신도">확신도 --</div>
         </div>
@@ -40,6 +40,18 @@
     </footer>
   </main>
 
+  <script>
+    // ES 모듈은 file:// 출처에서 CORS로 차단되어 js/app.js 가 아예 실행되지 않는다.
+    // 그래서 안내를 모듈 밖 인라인 스크립트에 둔다. 인라인은 file:// 에서도 실행된다.
+    if (location.protocol === "file:") {
+      var 오류칸 = document.getElementById("오류");
+      오류칸.textContent =
+        "파일을 직접 열면 브라우저가 이 앱을 실행하지 못합니다.\n" +
+        "web_version 폴더에서 python -m http.server 8000 을 실행한 뒤\n" +
+        "http://localhost:8000 으로 접속해 주세요.";
+      오류칸.hidden = false;
+    }
+  </script>
   <script type="module" src="js/app.js"></script>
 </body>
 </html>

@@ -32,7 +32,7 @@ python -m http.server 8000
 
 ```bash
 cd tools
-python train_web.py --epochs 15    # web_mnist_cnn.pt 생성
+python train_web.py --epochs 20    # web_mnist_cnn.pt 생성
 python export_weights.py           # ../model/weights.bin, weights.json 생성
 python make_fixtures.py            # ../tests/fixtures.json 갱신
 python bench.py                    # 정확도 확인

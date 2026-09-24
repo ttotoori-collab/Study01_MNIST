@@ -33,7 +33,7 @@ GitHub Pages에 정적으로 배포되며 `desktop_version/` 과 코드를 공�
 | 로컬 확인 | `python -m http.server 8000` 후 `http://localhost:8000` |
 | JS 테스트 | `node --test "tests/*.mjs"` |
 | 파이썬 테스트 | `cd tools && python -m unittest test_tools` |
-| 모델 재학습 | `cd tools && python train_web.py --epochs 15` |
+| 모델 재학습 | `cd tools && python train_web.py --epochs 20` |
 | 가중치 재생성 | `cd tools && python export_weights.py` |
 | 정확도 확인 | `cd tools && python bench.py` |
 

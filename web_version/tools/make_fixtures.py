@@ -15,13 +15,11 @@ import random
 from pathlib import Path
 
 import numpy as np
-import torch
 from torchvision import datasets
 
 from bench import 한장_그리기
 from export_weights import 넘파이_순전파, 레이어_순서
-from preprocess_ref import 전처리, 정규화
-from web_model import 웹CNN
+from preprocess_ref import 전처리
 
 출력_파일 = Path(__file__).parent.parent / "tests" / "fixtures.json"
 모델_폴더 = Path(__file__).parent.parent / "model"
