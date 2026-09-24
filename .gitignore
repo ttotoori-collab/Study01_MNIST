@@ -1,0 +1,14 @@
+# MNIST 원본 데이터 (64MB, 실행 시 자동 내려받음)
+desktop_version/data/
+web_version/tools/data/
+data/
+
+# 파이썬 캐시
+__pycache__/
+*.pyc
+
+# 학습 결과 가중치 (웹 배포용 weights.bin 은 제외하지 않는다)
+*.pt
+
+# 서브에이전트 작업 공간
+.superpowers/
