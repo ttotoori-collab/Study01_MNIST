@@ -866,7 +866,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 ```python
 import tempfile
 
-from export_weights import 넘파이_순전파, 내보내기, 레이어_순서
+from export_weights import 넘파이_순전파, 내보내기, 레이어_순서, 평균, 표준편차
 
 
 class 내보내기_테스트(unittest.TestCase):
@@ -903,8 +903,12 @@ class 내보내기_테스트(unittest.TestCase):
         self.assertEqual(다음, 105866)
 
     def test_넘파이_순전파가_파이토치와_같은_로짓을_낸다(self):
+        # 넘파이_순전파는 0~1 입력을 받아 **내부에서** 정규화한다. 따라서 파이토치
+        # 기준값을 구할 때도 같은 정규화를 거친 입력을 넣어야 같은 계산을 비교하게 된다.
+        # 원본 0~1 을 그대로 파이토치에 넣으면 서로 다른 것을 비교해 오차가 0.07 까지 벌어진다.
         입력 = np.random.RandomState(0).rand(28, 28).astype(np.float32)
-        기대 = self.모델(torch.from_numpy(입력).unsqueeze(0).unsqueeze(0))
+        정규화입력 = ((입력 - 평균) / 표준편차).astype(np.float32)
+        기대 = self.모델(torch.from_numpy(정규화입력).unsqueeze(0).unsqueeze(0))
         기대로짓 = 기대.detach().numpy()[0]
         실제 = 넘파이_순전파(
             {층["이름"]: 층 for 층 in self.메타["레이어"]},
