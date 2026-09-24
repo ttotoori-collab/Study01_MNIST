@@ -46,6 +46,7 @@
 | `.github/workflows/pages.yml` | `web_version/` 정적 배포 |
 | `desktop_version/**` | 기존 PyTorch + tkinter 앱 (이동만) |
 | `web_version/tools/web_model.py` | 웹 전용 경량 CNN 정의 |
+| `web_version/tools/손글씨_생성.py` | 글꼴로 손글씨 숫자를 그리는 공용 모듈 (학습/벤치 글꼴 분리) |
 | `web_version/tools/train_web.py` | 증강 학습 + 가중치 저장 |
 | `web_version/tools/export_weights.py` | `.pt` → `weights.bin` + `weights.json` |
 | `web_version/tools/preprocess_ref.py` | 전처리 기준 구현 (파이썬) |
@@ -289,15 +290,26 @@ class 전처리_테스트(unittest.TestCase):
         self.assertLessEqual(결과.max(), 1.0)
 
     def test_가장자리에_그려도_획이_반대편으로_넘어가지_않는다(self):
-        # 캔버스 맨 위에 가로로 긴 획을 그린다. 무게중심 정렬이 순환 이동이면
-        # 획의 일부가 아래쪽 모서리에 나타난다.
+        # 캔버스 맨 위에 가로로 긴 획을 그린다. 전처리는 이 획을 긴 변 20픽셀로 줄여
+        # 28x28 한가운데에 놓으므로 결과는 가운데 몇 줄(13~15행)에만 있어야 하고
+        # 위아래 가장자리는 비어 있어야 한다. 무게중심 정렬이 순환 이동이면
+        # 밀려난 픽셀이 반대편 가장자리에 나타난다.
         캔버스 = self.빈_캔버스()
         캔버스[0:30, 40:240] = 0
         결과 = 전처리(캔버스)
-        위쪽합 = 결과[:14].sum()
-        아래쪽합 = 결과[14:].sum()
-        self.assertGreater(위쪽합, 0.0)
-        self.assertAlmostEqual(아래쪽합, 0.0, places=5)
+        self.assertAlmostEqual(결과[:12].sum(), 0.0, places=5)
+        self.assertAlmostEqual(결과[17:].sum(), 0.0, places=5)
+        y = np.indices(결과.shape)[0]
+        self.assertAlmostEqual((y * 결과).sum() / 결과.sum(), 13.5, delta=0.6)
+
+    def test_평행이동은_밀려난_자리를_0으로_채운다(self):
+        # 순환 이동(np.roll)이면 맨 윗줄이 맨 아랫줄로 돌아와 합이 그대로 유지된다.
+        # 0으로 채우는 이동이면 밖으로 나간 값은 사라져 합이 0이 된다.
+        from preprocess_ref import _평행이동
+        배열 = np.zeros((4, 4), dtype=np.float64)
+        배열[0] = 1.0
+        결과 = _평행이동(배열, -1, 0)       # 위로 1칸 밀어 윗줄을 밖으로 내보낸다
+        self.assertAlmostEqual(결과.sum(), 0.0, places=6)
 
     def test_무게중심이_가운데로_옮겨진다(self):
         캔버스 = self.빈_캔버스()
@@ -506,7 +518,7 @@ Run:
 ```bash
 cd web_version/tools && $PY -m unittest test_tools -v
 ```
-Expected: 10개 테스트 모두 PASS
+Expected: 11개 테스트 모두 PASS
 
 - [ ] **Step 6: 커밋**
 
@@ -1051,7 +1063,7 @@ Run:
 ```bash
 cd web_version/tools && $PY -m unittest test_tools -v
 ```
-Expected: 14개 테스트 모두 PASS
+Expected: 15개 테스트 모두 PASS
 
 - [ ] **Step 5: 실제 가중치 내보내기**
 
@@ -1522,9 +1534,13 @@ test("가장자리에 그린 획이 반대편으로 넘어가지 않는다", () 
     for (let x = 40; x < 240; x++) 회색[y * 280 + x] = 0;
   }
   const 결과 = 전처리(회색, 280, 280);
-  let 아래쪽합 = 0;
-  for (let i = 14 * 28; i < 784; i++) 아래쪽합 += 결과[i];
-  assert.ok(아래쪽합 < 1e-5, `아래쪽에 ${아래쪽합} 만큼 새어 나왔다`);
+  // 획은 28x28 한가운데(13~15행)에 놓인다. 위아래 가장자리가 비어 있어야 하며,
+  // 순환 이동이면 밀려난 픽셀이 반대편 가장자리에 나타난다.
+  let 위가장자리 = 0, 아래가장자리 = 0;
+  for (let i = 0; i < 12 * 28; i++) 위가장자리 += 결과[i];
+  for (let i = 17 * 28; i < 784; i++) 아래가장자리 += 결과[i];
+  assert.ok(위가장자리 < 1e-5, `위 가장자리에 ${위가장자리} 만큼 새어 나왔다`);
+  assert.ok(아래가장자리 < 1e-5, `아래 가장자리에 ${아래가장자리} 만큼 새어 나왔다`);
 });
 
 test("결과가 0과 1 사이에 들어온다", () => {
@@ -2462,6 +2478,7 @@ GitHub Pages에 정적으로 배포되며 `desktop_version/` 과 코드를 공�
 | `js/model.js` | 가중치 로드, 순전파, TTA | O |
 | `js/app.js` | 화면과 추론 연결 | O |
 | `model/weights.bin` `weights.json` | 학습된 가중치 (414KB) | O |
+| `tools/손글씨_생성.py` | 글꼴 손글씨 생성 (학습/벤치 글꼴 분리) | X |
 | `tools/*.py` | 학습과 내보내기 (오프라인 전용) | X |
 | `tests/*.mjs` | node 동등성 테스트 | X |
 
@@ -2487,6 +2504,12 @@ GitHub Pages에 정적으로 배포되며 `desktop_version/` 과 코드를 공�
   한쪽만 고치면 `tests/test_preprocess.mjs` 가 깨진다.
 - 파이썬 `round` 는 0.5에서 짝수로 내리고 자바스크립트 `Math.round` 는 위로 올린다.
   두 구현에서 반올림을 쓸 때 이 차이를 기억한다.
+- `손글씨_생성.py` 의 `학습_글꼴` 과 `벤치_글꼴` 은 **절대 겹치면 안 된다.**
+  벤치마크는 학습에서 본 적 없는 글자꼴에 대한 일반화를 재는 잣대다. 학습 글꼴을
+  벤치마크에 넣으면 게이트가 스스로를 채점하게 되어 의미를 잃는다.
+- MNIST에는 밑변 세리프가 달린 넓적한 '1'(Segoe Script 계열) 같은 글자꼴이 없다.
+  그래서 글꼴로 그린 숫자 20,000장을 실제 전처리까지 통과시켜 MNIST에 25% 비중으로
+  섞어 학습한다. 표본은 `data/글꼴표본.npz` 에 캐시되며, 지우면 다시 생성된다(약 6분).
 ```
 
 - [ ] **Step 4: web_version/README.md 작성**
@@ -2563,7 +2586,7 @@ Run:
 cd web_version && node --test tests/
 cd tools && $PY -m unittest test_tools -v
 ```
-Expected: JS 21개, 파이썬 14개 모두 PASS
+Expected: JS 21개, 파이썬 15개 모두 PASS
 
 - [ ] **Step 7: 정확도 게이트 재확인**
 
@@ -2611,9 +2634,9 @@ GitHub 저장소 생성과 Pages 설정은 계정 권한이 필요해 대신 할
 | # | 작업 | 산출물 | 게이트 |
 | --- | --- | --- | --- |
 | 1 | 저장소 초기화와 desktop_version 이동 | 폴더 구조, 바로가기 갱신 | 앱이 새 경로에서 실행됨 |
-| 2 | 웹 모델 정의와 전처리 기준 구현 | `web_model.py`, `preprocess_ref.py` | 파이썬 테스트 10개 |
+| 2 | 웹 모델 정의와 전처리 기준 구현 | `web_model.py`, `preprocess_ref.py` | 파이썬 테스트 11개 |
 | 3 | 증강 학습과 정확도 게이트 | `web_mnist_cnn.pt` | MNIST 99.0%, 가혹 98.5% |
-| 4 | 가중치 내보내기와 fixture | `weights.bin/json`, `fixtures.json` | 파이썬 테스트 14개 |
+| 4 | 가중치 내보내기와 fixture | `weights.bin/json`, `fixtures.json` | 파이썬 테스트 15개 |
 | 5 | JS 텐서 연산 | `nn.js` | JS 테스트 11개 |
 | 6 | 전처리 JS 이식 | `preprocess.js` | 파이썬과 오차 1e-3 이하 |
 | 7 | 가중치 로더와 추론 | `model.js` | 파이토치와 오차 1e-4 이하 |
