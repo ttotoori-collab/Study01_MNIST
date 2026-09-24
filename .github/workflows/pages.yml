@@ -1,0 +1,53 @@
+# web_version 폴더만 GitHub Pages 로 배포한다.
+# tools/ 와 tests/ 는 오프라인 전용이라 사이트에 올리지 않는다.
+name: Pages 배포
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  테스트:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: 자바스크립트 테스트
+        run: node --test "web_version/tests/*.mjs"
+
+  배포:
+    needs: 테스트
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.배포단계.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 정적 파일만 추려 내기
+        run: |
+          mkdir -p _사이트
+          rsync -a --exclude 'tools/' --exclude 'tests/' web_version/ _사이트/
+          echo "--- 배포 대상 ---"
+          find _사이트 -type f | sort
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _사이트
+
+      - id: 배포단계
+        uses: actions/deploy-pages@v4

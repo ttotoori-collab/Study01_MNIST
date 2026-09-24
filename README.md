@@ -10,3 +10,14 @@
 
 웹 버전은 외부 라이브러리 없이 자바스크립트로 직접 순전파를 계산하며,
 GitHub Pages에 정적으로 배포된다.
+
+## GitHub Pages 배포
+
+`main` 에 push하면 `.github/workflows/pages.yml` 이 `web_version/` 을 배포한다.
+`tools/` 와 `tests/` 는 제외된다.
+
+처음 한 번은 GitHub에서 직접 설정해야 한다.
+
+1. GitHub에 저장소를 만들고 `git remote add origin <주소>` 후 push
+2. 저장소 Settings → Pages → Source 를 **GitHub Actions** 로 바꾼다
+3. Actions 탭에서 `Pages 배포` 워크플로우가 초록불이 되면 주소가 나온다
