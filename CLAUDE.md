@@ -50,10 +50,14 @@ python bench.py                                     # 정확도 게이트 (미�
 
 ```bash
 cd web_version
-node --test tests/                 # 자바스크립트 테스트 전체
+node --test "tests/*.mjs"          # 자바스크립트 테스트 전체 (글로브로 지정할 것)
 node --test tests/test_nn.mjs      # 파일 하나만
 python -m http.server 8000         # 로컬 확인 (file:// 로 열면 fetch 가 막힌다)
 ```
+
+`node --test tests/` 는 동작하지 않는다. Node 22부터 `--test` 인자가 글로브 기반으로
+바뀌어 디렉터리를 모듈로 취급하고 `ERR_MODULE_NOT_FOUND` 로 죽는다. 파일명 `test_*.mjs`
+의 밑줄도 node 기본 패턴(`test-*`, `*_test`, `*.test.*`)과 맞지 않는다. 글로브를 쓴다.
 
 파이썬 테스트는 **반드시 `web_version/tools` 안에서** 실행한다. 임포트가
 `from web_model import ...` 처럼 평평해서 다른 위치에서는 실패한다.

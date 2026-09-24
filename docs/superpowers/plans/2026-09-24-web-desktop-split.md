@@ -1994,7 +1994,7 @@ export function 예측(모델, 이미지) {
 
 Run:
 ```bash
-cd web_version && node --test tests/
+cd web_version && node --test "tests/*.mjs"
 ```
 Expected: `test_nn.mjs`, `test_preprocess.mjs`, `test_model.mjs` 의 21개 테스트 모두 PASS
 
@@ -2417,7 +2417,7 @@ jobs:
         with:
           node-version: '24'
       - name: 자바스크립트 테스트
-        run: node --test web_version/tests/
+        run: node --test "web_version/tests/*.mjs"
 
   배포:
     needs: 테스트
@@ -2491,7 +2491,7 @@ GitHub Pages에 정적으로 배포되며 `desktop_version/` 과 코드를 공�
 | 목적 | 명령 |
 | --- | --- |
 | 로컬 확인 | `python -m http.server 8000` 후 `http://localhost:8000` |
-| JS 테스트 | `node --test tests/` |
+| JS 테스트 | `node --test "tests/*.mjs"` |
 | 파이썬 테스트 | `cd tools && python -m unittest test_tools` |
 | 모델 재학습 | `cd tools && python train_web.py --epochs 15` |
 | 가중치 재생성 | `cd tools && python export_weights.py` |
@@ -2501,6 +2501,10 @@ GitHub Pages에 정적으로 배포되며 `desktop_version/` 과 코드를 공�
 
 - `file://` 로 열면 `fetch` 가 막혀 가중치를 읽지 못한다. 반드시 정적 서버로 연다.
   이 경우 화면에 안내가 뜨도록 되어 있으니, 빈 화면이 보이면 그쪽을 먼저 의심한다.
+- 테스트는 `node --test "tests/*.mjs"` 처럼 **글로브**로 지정한다. `node --test tests/`
+  는 동작하지 않는다 — Node 22부터 `--test` 인자가 글로브 기반으로 바뀌어 디렉터리를
+  모듈로 취급하고 `ERR_MODULE_NOT_FOUND` 로 죽는다. 파일명 `test_*.mjs` 의 밑줄도
+  node 기본 패턴(`test-*`, `*_test`, `*.test.*`)과 맞지 않는다.
 - 모델 구조를 바꾸면 **세 곳**을 함께 고쳐야 한다.
   `tools/web_model.py`, `tools/export_weights.py` 의 `레이어_순서`, `js/model.js` 의 `순전파`.
   그 뒤 `export_weights.py` 와 `make_fixtures.py` 를 다시 돌린다.
@@ -2562,7 +2566,7 @@ python bench.py                    # 정확도 확인
 ## 테스트
 
 ```bash
-node --test tests/
+node --test "tests/*.mjs"
 ```
 ```
 
@@ -2587,7 +2591,7 @@ node --test tests/
 
 Run:
 ```bash
-cd web_version && node --test tests/
+cd web_version && node --test "tests/*.mjs"
 cd tools && $PY -m unittest test_tools -v
 ```
 Expected: JS 21개, 파이썬 15개 모두 PASS
