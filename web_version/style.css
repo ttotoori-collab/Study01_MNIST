@@ -1,0 +1,90 @@
+/* 데스크톱 앱과 같은 파란 계열로 맞췄다. 좁은 화면에서는 세로로 쌓인다. */
+:root {
+  --주색: #1a56db;
+  --연한주색: #9db5e8;
+  --글자색: #1f2937;
+  --선색: #d1d5db;
+  --배경: #f8fafc;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  padding: 24px 16px;
+  font-family: "맑은 고딕", "Malgun Gothic", system-ui, sans-serif;
+  color: var(--글자색);
+  background: var(--배경);
+}
+
+.바깥틀 { max-width: 720px; margin: 0 auto; }
+h1 { font-size: 1.5rem; margin: 0 0 4px; }
+.설명 { margin: 0 0 20px; color: #6b7280; }
+
+.오류 {
+  margin-bottom: 16px;
+  padding: 12px 14px;
+  border: 1px solid #fca5a5;
+  border-radius: 8px;
+  background: #fef2f2;
+  color: #991b1b;
+  white-space: pre-wrap;   /* 안내문의 줄바꿈을 살린다 */
+}
+
+.본문 { display: flex; flex-wrap: wrap; gap: 24px; }
+.왼쪽 { flex: 0 0 auto; }
+.오른쪽 { flex: 1 1 260px; min-width: 260px; }
+
+#그림판 {
+  display: block;
+  width: 280px;
+  height: 280px;
+  background: #fff;
+  border: 1px solid var(--선색);
+  border-radius: 8px;
+  cursor: crosshair;
+  touch-action: none;      /* 그리는 동안 페이지가 스크롤되지 않게 막는다 */
+}
+
+#지우기단추 {
+  width: 100%;
+  margin-top: 8px;
+  padding: 10px;
+  font: inherit;
+  color: #fff;
+  background: var(--주색);
+  border: 0;
+  border-radius: 8px;
+  cursor: pointer;
+}
+#지우기단추:hover { background: #1543ad; }
+
+.결과칸 { display: flex; align-items: baseline; gap: 12px; }
+.예측숫자 { font-size: 5rem; font-weight: 700; line-height: 1; color: var(--주색); }
+.확신도 { color: #6b7280; }
+
+.소제목 { font-size: 0.95rem; margin: 20px 0 8px; }
+
+.막대목록 { list-style: none; margin: 0; padding: 0; }
+.막대목록 li { display: flex; align-items: center; gap: 8px; margin-bottom: 3px; }
+.막대목록 .숫자 { width: 1rem; font-variant-numeric: tabular-nums; }
+.막대칸 { flex: 1; height: 12px; background: #eceff3; border-radius: 3px; overflow: hidden; }
+.막대 { height: 100%; width: 0; background: var(--연한주색); transition: width 0.12s; }
+.막대목록 li.최고 .막대 { background: var(--주색); }
+.막대목록 .수치 { width: 3rem; text-align: right; font-variant-numeric: tabular-nums; }
+
+.미리보기 {
+  width: 112px;
+  height: 112px;
+  background: #000;
+  border: 1px solid var(--선색);
+  border-radius: 4px;
+  image-rendering: pixelated;   /* 28x28을 또렷한 네모로 확대한다 */
+}
+
+.바닥글 { margin-top: 24px; font-size: 0.85rem; color: #9ca3af; }
+
+@media (max-width: 640px) {
+  .본문 { flex-direction: column; }
+  #그림판 { width: 100%; height: auto; aspect-ratio: 1; }
+}

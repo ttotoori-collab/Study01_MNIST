@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>손글씨 숫자 인식기</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="바깥틀">
+    <h1>손글씨 숫자 인식기</h1>
+    <p class="설명">칸 안에 숫자를 크게 그리면 바로 알아맞힙니다.</p>
+
+    <div id="오류" class="오류" hidden></div>
+
+    <div class="본문">
+      <section class="왼쪽">
+        <canvas id="그림판" width="280" height="280" aria-label="숫자를 그리는 칸"></canvas>
+        <button id="지우기단추" type="button">지우기</button>
+      </section>
+
+      <section class="오른쪽">
+        <div class="결과칸">
+          <div id="예측숫자" class="예측숫자">?</div>
+          <div id="확신도" class="확신도">확신도 --</div>
+        </div>
+
+        <h2 class="소제목">숫자별 확률</h2>
+        <ul id="막대목록" class="막대목록"></ul>
+
+        <h2 class="소제목">모델이 보는 그림 (28x28)</h2>
+        <canvas id="미리보기" class="미리보기" width="28" height="28"
+                aria-label="모델 입력 미리보기"></canvas>
+      </section>
+    </div>
+
+    <footer class="바닥글">
+      외부 라이브러리 없이 자바스크립트로 직접 계산합니다.
+      <span id="소요시간"></span>
+    </footer>
+  </main>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
