@@ -15,6 +15,7 @@ MNIST만으로는 부족하다. MNIST의 숫자 모양은 특정 필기 스타�
 """
 
 import argparse
+import random
 import time
 from pathlib import Path
 
@@ -57,14 +58,31 @@ class 획굵기_변화:
         return 결과.squeeze(0)
 
 
-def _글꼴표본_생성(캐시_파일, 개수당):
+def _캐시_식별자(개수, 시드):
+    """
+    캐시가 지금 설정과 맞는지 판단할 지문을 만든다.
+    글꼴 목록·표본 수·시드 중 하나라도 바뀌면 값이 달라져 캐시를 다시 만든다.
+    """
+    글꼴들 = ",".join(경로.name for 경로 in 학습_글꼴)
+    return f"{글꼴들}|{개수}|{시드}"
+
+
+def _글꼴표본_생성(캐시_파일, 개수당, 시드):
     """학습용 글꼴로 숫자를 그려 실제 전처리를 거친 표본을 만들어 캐시한다."""
-    print(f"글꼴 표본 생성 중... (숫자당 {개수당}장, 학습_글꼴 {len(학습_글꼴)}종)")
+    print(f"글꼴 표본 생성 중... (숫자당 {개수당}장, 학습_글꼴 {len(학습_글꼴)}종, 시드 {시드})")
     시작 = time.time()
     이미지들, 레이블들 = [], []
+    최대_시도 = 개수당 * 10   # 이 이상 실패하면 전처리가 계속 None을 돌려준다는 뜻이다
     for 숫자 in range(10):
         모은수 = 0
+        시도수 = 0
         while 모은수 < 개수당:
+            시도수 += 1
+            if 시도수 > 최대_시도:
+                raise RuntimeError(
+                    f"숫자 {숫자}: {최대_시도}번 시도했지만 {개수당}장을 채우지 못했습니다. "
+                    "전처리()가 계속 None을 돌려줍니다 — 한장_그리기 또는 전처리 로직을 확인하세요."
+                )
             캔버스 = 한장_그리기(숫자, 학습_글꼴)
             이미지 = 전처리(캔버스)
             if 이미지 is None:
@@ -74,16 +92,33 @@ def _글꼴표본_생성(캐시_파일, 개수당):
             모은수 += 1
         print(f"  숫자 {숫자}: {모은수}장 완료")
     캐시_파일.parent.mkdir(parents=True, exist_ok=True)
-    np.savez(캐시_파일, 이미지=np.stack(이미지들), 레이블=np.array(레이블들, dtype=np.int64))
+    np.savez(
+        캐시_파일,
+        이미지=np.stack(이미지들),
+        레이블=np.array(레이블들, dtype=np.int64),
+        식별자=np.array(_캐시_식별자(개수당, 시드)),
+    )
     print(f"글꼴 표본 {len(레이블들)}장 저장 완료 ({time.time() - 시작:.0f}초): {캐시_파일}")
 
 
 class 글꼴숫자_데이터셋(torch.utils.data.Dataset):
     """폰트로 그려 전처리까지 거친 숫자 표본. 캐시를 읽고 에폭마다 다른 변형을 추가로 건다."""
 
-    def __init__(self, 캐시_파일, 개수당=2000):
-        if not 캐시_파일.exists():
-            _글꼴표본_생성(캐시_파일, 개수당)
+    def __init__(self, 캐시_파일, 개수당=2000, 시드=1):
+        기대_식별자 = _캐시_식별자(개수당, 시드)
+        다시_생성 = not 캐시_파일.exists()
+        if not 다시_생성:
+            데이터 = np.load(캐시_파일)
+            저장된_식별자 = str(데이터["식별자"]) if "식별자" in 데이터 else None
+            기대_개수 = 개수당 * 10
+            if 저장된_식별자 != 기대_식별자:
+                print(f"경고: 글꼴 표본 캐시 식별자가 달라 다시 만듭니다 (기존: {저장된_식별자!r}, 기대: {기대_식별자!r}) — {캐시_파일}")
+                다시_생성 = True
+            elif len(데이터["레이블"]) != 기대_개수:
+                print(f"경고: 글꼴 표본 캐시 개수가 다릅니다 ({len(데이터['레이블'])} != {기대_개수}) — 다시 만듭니다: {캐시_파일}")
+                다시_생성 = True
+        if 다시_생성:
+            _글꼴표본_생성(캐시_파일, 개수당, 시드)
         데이터 = np.load(캐시_파일)
         self.이미지 = 데이터["이미지"]
         self.레이블 = 데이터["레이블"]
@@ -103,7 +138,7 @@ class 글꼴숫자_데이터셋(torch.utils.data.Dataset):
         return self.변형(텐서), int(self.레이블[색인])
 
 
-def 데이터로더_만들기(배치크기):
+def 데이터로더_만들기(배치크기, 시드):
     """학습용에는 증강을, 테스트용에는 정규화만 적용한다."""
     학습_전처리 = transforms.Compose([
         transforms.RandomAffine(
@@ -122,7 +157,7 @@ def 데이터로더_만들기(배치크기):
         transforms.Normalize((0.1307,), (0.3081,)),
     ])
     학습셋_MNIST = datasets.MNIST(데이터_경로, train=True, download=True, transform=학습_전처리)
-    글꼴셋 = 글꼴숫자_데이터셋(글꼴표본_파일, 개수당=2000)
+    글꼴셋 = 글꼴숫자_데이터셋(글꼴표본_파일, 개수당=2000, 시드=시드)
     학습셋 = torch.utils.data.ConcatDataset([학습셋_MNIST, 글꼴셋])
     테스트셋 = datasets.MNIST(데이터_경로, train=False, download=True, transform=테스트_전처리)
     return (
@@ -151,10 +186,12 @@ def main():
     인자 = 파서.parse_args()
 
     torch.manual_seed(인자.seed)
+    random.seed(인자.seed)
+    np.random.seed(인자.seed)
     장치 = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"사용 장치: {장치}")
 
-    학습로더, 테스트로더 = 데이터로더_만들기(인자.batch_size)
+    학습로더, 테스트로더 = 데이터로더_만들기(인자.batch_size, 인자.seed)
     모델 = 웹CNN().to(장치)
     옵티마이저 = optim.Adadelta(모델.parameters(), lr=인자.lr)
     스케줄러 = StepLR(옵티마이저, step_size=3, gamma=0.7)

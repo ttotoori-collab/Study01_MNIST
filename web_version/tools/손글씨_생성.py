@@ -47,6 +47,21 @@ from PIL import Image, ImageDraw, ImageFilter, ImageFont
 ]
 
 
+def _존재_확인(글꼴목록, 이름):
+    """
+    글꼴 파일이 실제로 있는지 모듈을 불러올 때 미리 확인한다.
+    없으면 표본을 수천 번 만드는 도중 알 수 없는 OSError로 죽는 대신,
+    어떤 파일이 없는지 바로 알려 준다.
+    """
+    없음 = [str(경로) for 경로 in 글꼴목록 if not 경로.exists()]
+    if 없음:
+        raise FileNotFoundError(f"{이름}에 없는 글꼴 파일: {', '.join(없음)}")
+
+
+_존재_확인(학습_글꼴, "학습_글꼴")
+_존재_확인(벤치_글꼴, "벤치_글꼴")
+
+
 def _박스흐림(판, 반경):
     """PIL이 실수형 이미지를 흐리게 하지 못해 누적합으로 직접 구현한다."""
     반경 = max(1, int(반경))
