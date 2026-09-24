@@ -41,15 +41,26 @@ class 전처리_테스트(unittest.TestCase):
         self.assertLessEqual(결과.max(), 1.0)
 
     def test_가장자리에_그려도_획이_반대편으로_넘어가지_않는다(self):
-        # 캔버스 맨 위에 가로로 긴 획을 그린다. 무게중심 정렬이 순환 이동이면
-        # 획의 일부가 아래쪽 모서리에 나타난다.
+        # 캔버스 맨 위에 가로로 긴 획을 그린다. 전처리는 이 획을 긴 변 20픽셀로 줄여
+        # 28x28 한가운데에 놓으므로 결과는 가운데 몇 줄(13~15행)에만 있어야 하고
+        # 위아래 가장자리는 비어 있어야 한다. 무게중심 정렬이 순환 이동이면
+        # 밀려난 픽셀이 반대편 가장자리에 나타난다.
         캔버스 = self.빈_캔버스()
         캔버스[0:30, 40:240] = 0
         결과 = 전처리(캔버스)
-        위쪽합 = 결과[:14].sum()
-        아래쪽합 = 결과[14:].sum()
-        self.assertGreater(위쪽합, 0.0)
-        self.assertAlmostEqual(아래쪽합, 0.0, places=5)
+        self.assertAlmostEqual(결과[:12].sum(), 0.0, places=5)
+        self.assertAlmostEqual(결과[17:].sum(), 0.0, places=5)
+        y = np.indices(결과.shape)[0]
+        self.assertAlmostEqual((y * 결과).sum() / 결과.sum(), 13.5, delta=0.6)
+
+    def test_평행이동은_밀려난_자리를_0으로_채운다(self):
+        # 순환 이동(np.roll)이면 맨 윗줄이 맨 아랫줄로 돌아와 합이 그대로 유지된다.
+        # 0으로 채우는 이동이면 밖으로 나간 값은 사라져 합이 0이 된다.
+        from preprocess_ref import _평행이동
+        배열 = np.zeros((4, 4), dtype=np.float64)
+        배열[0] = 1.0
+        결과 = _평행이동(배열, -1, 0)       # 위로 1칸 밀어 윗줄을 밖으로 내보낸다
+        self.assertAlmostEqual(결과.sum(), 0.0, places=6)
 
     def test_무게중심이_가운데로_옮겨진다(self):
         캔버스 = self.빈_캔버스()
