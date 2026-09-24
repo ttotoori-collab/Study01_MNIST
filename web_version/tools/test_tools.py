@@ -1,6 +1,7 @@
 """웹 전용 모델과 전처리 기준 구현에 대한 테스트."""
 
 import unittest
+from pathlib import Path
 
 import numpy as np
 import torch
@@ -89,6 +90,60 @@ class 전처리_테스트(unittest.TestCase):
         값 = 정규화(np.array([[0.0, 1.0]], dtype=np.float32))
         self.assertAlmostEqual(float(값[0, 0]), (0.0 - 0.1307) / 0.3081, places=5)
         self.assertAlmostEqual(float(값[0, 1]), (1.0 - 0.1307) / 0.3081, places=5)
+
+
+import tempfile
+
+from export_weights import 넘파이_순전파, 내보내기, 레이어_순서, 평균, 표준편차
+
+
+class 내보내기_테스트(unittest.TestCase):
+    def setUp(self):
+        torch.manual_seed(0)
+        self.모델 = 웹CNN()
+        self.모델.eval()
+        self.임시폴더 = tempfile.TemporaryDirectory()
+        경로 = Path(self.임시폴더.name)
+        torch.save(self.모델.state_dict(), 경로 / "임시.pt")
+        self.메타 = 내보내기(경로 / "임시.pt", 경로)
+        self.출력폴더 = 경로
+
+    def tearDown(self):
+        self.임시폴더.cleanup()
+
+    def test_레이어가_여덟개고_순서가_고정이다(self):
+        self.assertEqual(레이어_순서, [
+            "conv1.weight", "conv1.bias", "conv2.weight", "conv2.bias",
+            "fc1.weight", "fc1.bias", "fc2.weight", "fc2.bias",
+        ])
+        self.assertEqual([층["이름"] for 층 in self.메타["레이어"]], 레이어_순서)
+
+    def test_bin_크기가_파라미터_수와_일치한다(self):
+        크기 = (self.출력폴더 / "weights.bin").stat().st_size
+        self.assertEqual(크기, 105866 * 4)
+        self.assertLessEqual(크기, 500 * 1024)
+
+    def test_오프셋이_빈틈없이_이어진다(self):
+        다음 = 0
+        for 층 in self.메타["레이어"]:
+            self.assertEqual(층["오프셋"], 다음)
+            다음 += 층["개수"]
+        self.assertEqual(다음, 105866)
+
+    def test_넘파이_순전파가_파이토치와_같은_로짓을_낸다(self):
+        # 넘파이_순전파는 0~1 입력을 받아 **내부에서** 정규화한다. 따라서 파이토치
+        # 기준값을 구할 때도 같은 정규화를 거친 입력을 넣어야 같은 계산을 비교하게 된다.
+        # 원본 0~1 을 그대로 파이토치에 넣으면 서로 다른 것을 비교해 오차가 0.07 까지 벌어진다.
+        입력 = np.random.RandomState(0).rand(28, 28).astype(np.float32)
+        정규화입력 = ((입력 - 평균) / 표준편차).astype(np.float32)
+        기대 = self.모델(torch.from_numpy(정규화입력).unsqueeze(0).unsqueeze(0))
+        기대로짓 = 기대.detach().numpy()[0]
+        실제 = 넘파이_순전파(
+            {층["이름"]: 층 for 층 in self.메타["레이어"]},
+            입력,
+            (self.출력폴더 / "weights.bin").read_bytes(),
+        )
+        self.assertLess(float(np.abs(실제 - 기대로짓).max()), 1e-4)
 
 
 if __name__ == "__main__":
